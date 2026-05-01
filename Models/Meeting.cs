@@ -10,7 +10,6 @@ public class Meeting
     public string Id { get; set; } = string.Empty;
     
     [BsonElement("team_id")]
-    [BsonRepresentation(BsonType.ObjectId)]
     public string TeamId { get; set; } = string.Empty;
     
     [BsonElement("title")]
@@ -23,7 +22,6 @@ public class Meeting
     public int DurationMinutes { get; set; }
     
     [BsonElement("creator_id")]
-    [BsonRepresentation(BsonType.ObjectId)]
     public string CreatorId { get; set; } = string.Empty;
     
     [BsonElement("status")]
