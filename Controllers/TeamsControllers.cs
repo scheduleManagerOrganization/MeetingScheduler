@@ -30,8 +30,14 @@ public class TeamsController : ControllerBase
     {
         try
         {
+            // 🔧 OwnerId 유효성 검사 강화
+            if (string.IsNullOrEmpty(request.OwnerId) || request.OwnerId.Length != 24)
+            {
+                return BadRequest(new { success = false, error = "INVALID_OWNER_ID" });
+            }
+        
             var joinCode = GenerateJoinCode();
-            
+        
             var team = new Team
             {
                 TeamName = request.TeamName,
@@ -44,9 +50,9 @@ public class TeamsController : ControllerBase
                 },
                 CreatedAt = DateTime.UtcNow
             };
-            
+        
             await _mongoDB.Teams.InsertOneAsync(team);
-            
+        
             return Ok(new
             {
                 success = true,
@@ -60,70 +66,70 @@ public class TeamsController : ControllerBase
     }
     
     [HttpPost("join")]
-public async Task<IActionResult> JoinTeam([FromBody] JoinTeamRequest request)
-{
-    try
+    public async Task<IActionResult> JoinTeam([FromBody] JoinTeamRequest request)
     {
-        Console.WriteLine($"=== JoinTeam called ===");
-        Console.WriteLine($"Request.JoinCode: '{request.JoinCode}'");
-        Console.WriteLine($"Request.UserId: '{request.UserId}'");
-        
-        if (string.IsNullOrEmpty(request.JoinCode))
+        try
         {
-            return BadRequest(new { success = false, error = "EMPTY_CODE", message = "Join code is required" });
-        }
+            Console.WriteLine($"=== JoinTeam called ===");
+            Console.WriteLine($"Request.JoinCode: '{request.JoinCode}'");
+            Console.WriteLine($"Request.UserId: '{request.UserId}'");
         
-        // 🔧 대소문자 구분 없이 검색
-        var team = await _mongoDB.Teams
-            .Find(x => x.JoinCode.ToUpper() == request.JoinCode.ToUpper())
-            .FirstOrDefaultAsync();
-        
-        if (team == null)
-        {
-            Console.WriteLine($"❌ Team not found with code: '{request.JoinCode}'");
-            
-            // 디버깅: 모든 팀의 코드 출력
-            var allTeams = await _mongoDB.Teams.Find(_ => true).ToListAsync();
-            Console.WriteLine($"Total teams in DB: {allTeams.Count}");
-            foreach (var t in allTeams)
+            if (string.IsNullOrEmpty(request.JoinCode))
             {
-                Console.WriteLine($"  Team: {t.TeamName}, Code: '{t.JoinCode}'");
+                return BadRequest(new { success = false, error = "EMPTY_CODE", message = "Join code is required" });
             }
+        
+            // 🔧 대소문자 구분 없이 검색
+            var team = await _mongoDB.Teams
+                .Find(x => x.JoinCode.ToUpper() == request.JoinCode.ToUpper())
+                .FirstOrDefaultAsync();
+        
+            if (team == null)
+            {
+                Console.WriteLine($"❌ Team not found with code: '{request.JoinCode}'");
             
-            return NotFound(new { success = false, error = "INVALID_CODE", message = $"Code '{request.JoinCode}' not found" });
+                // 디버깅: 모든 팀의 코드 출력
+                var allTeams = await _mongoDB.Teams.Find(_ => true).ToListAsync();
+                Console.WriteLine($"Total teams in DB: {allTeams.Count}");
+                foreach (var t in allTeams)
+                {
+                    Console.WriteLine($"  Team: {t.TeamName}, Code: '{t.JoinCode}'");
+                }
+            
+                return NotFound(new { success = false, error = "INVALID_CODE", message = $"Code '{request.JoinCode}' not found" });
+            }
+        
+            Console.WriteLine($"✅ Team found: {team.TeamName}, Id: {team.Id}");
+        
+            if (team.Members.Any(m => m.UserId == request.UserId))
+            {
+                return BadRequest(new { success = false, error = "ALREADY_MEMBER" });
+            }
+        
+            var update = Builders<Team>.Update.Push(x => x.Members, new TeamMember
+            {
+                UserId = request.UserId,
+                Role = "member",
+                Status = "active",
+                JoinedAt = DateTime.UtcNow
+            });
+        
+            await _mongoDB.Teams.UpdateOneAsync(x => x.Id == team.Id, update);
+        
+            Console.WriteLine($"✅ User {request.UserId} added to team {team.TeamName}");
+        
+            return Ok(new
+            {
+                success = true,
+                data = new { team_id = team.Id, team_name = team.TeamName }
+            });
         }
-        
-        Console.WriteLine($"✅ Team found: {team.TeamName}, Id: {team.Id}");
-        
-        if (team.Members.Any(m => m.UserId == request.UserId))
+        catch (Exception e)
         {
-            return BadRequest(new { success = false, error = "ALREADY_MEMBER" });
+            Console.WriteLine($"❌ Error in JoinTeam: {e.Message}");
+            return StatusCode(500, new { success = false, error = e.Message });
         }
-        
-        var update = Builders<Team>.Update.Push(x => x.Members, new TeamMember
-        {
-            UserId = request.UserId,
-            Role = "member",
-            Status = "active",
-            JoinedAt = DateTime.UtcNow
-        });
-        
-        await _mongoDB.Teams.UpdateOneAsync(x => x.Id == team.Id, update);
-        
-        Console.WriteLine($"✅ User {request.UserId} added to team {team.TeamName}");
-        
-        return Ok(new
-        {
-            success = true,
-            data = new { team_id = team.Id, team_name = team.TeamName }
-        });
     }
-    catch (Exception e)
-    {
-        Console.WriteLine($"❌ Error in JoinTeam: {e.Message}");
-        return StatusCode(500, new { success = false, error = e.Message });
-    }
-}
     
     [HttpGet("{userId}")]
     public async Task<IActionResult> GetUserTeams(string userId)
