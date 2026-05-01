@@ -99,4 +99,7 @@ app.MapPost("/api/init-db", async (MongoDBService db) =>
     });
 });
 
+// Render용 포트 설정
+var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+app.Urls.Add($"http://0.0.0.0:{port}");
 app.Run();
