@@ -66,7 +66,7 @@ public class TeamsController : ControllerBase
         {
             Console.WriteLine($"🔍 JoinTeam called with join_code: '{request.JoinCode}', user_id: '{request.UserId}'");
             
-            var team = await _mongoDB.Teams.Find(x => x.JoinCode == request.JoinCode.ToUpper()).FirstOrDefaultAsync();
+            var team = await _mongoDB.Teams.Find(x => x.JoinCode.ToUpper == request.JoinCode.ToUpper()).FirstOrDefaultAsync();
             if (team == null)
             {
                 Console.WriteLine($"❌ Team not found with code: {request.JoinCode}");
@@ -80,7 +80,8 @@ public class TeamsController : ControllerBase
                 return BadRequest(new { success = false, error = "ALREADY_MEMBER" });
             }
             
-            team.Members.Add(new TeamMember
+            // 멤버 추가 (UpdateOne 사용)
+            var update = Builders<Team>.Update.Push(x => x.Members, new TeamMember
             {
                 UserId = request.UserId,
                 Role = "member",
