@@ -15,7 +15,6 @@ public class TeamMember
 public class Team
 {
     [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = string.Empty;
     
     [BsonElement("team_name")]
