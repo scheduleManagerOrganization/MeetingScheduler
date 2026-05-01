@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using MeetingScheduler.Services;
+using MongoDB.Driver;
 
 namespace MeetingScheduler.Hubs;
 
