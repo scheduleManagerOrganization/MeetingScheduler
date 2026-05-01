@@ -12,6 +12,7 @@ public class TimeSlot
 public class UserCalendar
 {
     [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = string.Empty;
     
     [BsonElement("user_id")]
