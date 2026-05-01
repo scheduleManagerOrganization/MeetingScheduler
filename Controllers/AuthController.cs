@@ -43,7 +43,10 @@ public class AuthController : ControllerBase
             await _mongoDB.Users.InsertOneAsync(user);
             
             var token = _auth.GenerateJwtToken(user.Id, user.Email, user.Name);
-            
+
+            Console.WriteLine($"User Id: {user.Id}");
+            Console.WriteLine($"User Id length: {user.Id.Length}");
+        
             return Ok(new
             {
                 success = true,
