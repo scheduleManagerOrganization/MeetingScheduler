@@ -64,12 +64,21 @@ public class TeamsController : ControllerBase
     {
         try
         {
-            var team = await _mongoDB.Teams.Find(x => x.JoinCode == request.JoinCode).FirstOrDefaultAsync();
+            Console.WriteLine($"🔍 JoinTeam called with join_code: '{request.JoinCode}', user_id: '{request.UserId}'");
+            
+            var team = await _mongoDB.Teams.Find(x => x.JoinCode == request.JoinCode.ToUpper()).FirstOrDefaultAsync();
             if (team == null)
+            {
+                Console.WriteLine($"❌ Team not found with code: {request.JoinCode}");
                 return NotFound(new { success = false, error = "INVALID_CODE" });
+            }
+
+            Console.WriteLine($"✅ Team found: {team.TeamName}, Id: {team.Id}");
             
             if (team.Members.Any(m => m.UserId == request.UserId))
+            {
                 return BadRequest(new { success = false, error = "ALREADY_MEMBER" });
+            }
             
             team.Members.Add(new TeamMember
             {
