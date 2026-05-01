@@ -5,6 +5,7 @@ namespace MeetingScheduler.Models;
 
 public class TeamMember
 {
+    [BsonRepresentation(BsonType.ObjectId)]  // 🔧 추가
     public string UserId { get; set; } = string.Empty;
     
     public string Role { get; set; } = "member";
@@ -25,6 +26,7 @@ public class Team
     public string JoinCode { get; set; } = string.Empty;
     
     [BsonElement("owner_id")]
+    [BsonRepresentation(BsonType.ObjectId)]  // 🔧 추가
     public string OwnerId { get; set; } = string.Empty;
     
     [BsonElement("description")]
