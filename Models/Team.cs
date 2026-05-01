@@ -5,7 +5,8 @@ namespace MeetingScheduler.Models;
 
 public class TeamMember
 {
-    public string UserId { get; set; } = string.Empty;
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? UserId { get; set; }  // 🔧 null 허용으로 변경
     
     public string Role { get; set; } = "member";
     public string Status { get; set; } = "active";
@@ -16,7 +17,7 @@ public class Team
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
     
     [BsonElement("team_name")]
     public string TeamName { get; set; } = string.Empty;
@@ -25,7 +26,8 @@ public class Team
     public string JoinCode { get; set; } = string.Empty;
     
     [BsonElement("owner_id")]
-    public string OwnerId { get; set; } = string.Empty;
+    [BsonRepresentation(BsonType.ObjectId)]  // 🔧 복원 + null 허용
+    public string? OwnerId { get; set; }
     
     [BsonElement("description")]
     public string Description { get; set; } = string.Empty;
