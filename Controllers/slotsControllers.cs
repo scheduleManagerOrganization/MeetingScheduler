@@ -23,15 +23,32 @@ public class SlotsController : ControllerBase
     {
         try
         {
+            // 🔧 1. MeetingId 유효성 검증
+            if (string.IsNullOrEmpty(request.MeetingId) || request.MeetingId.Length != 24)
+            {
+                return BadRequest(new { success = false, error = "INVALID_MEETING_ID", message = "Meeting ID must be a 24-character hex string" });
+            }
+            
             var meeting = await _mongoDB.Meetings.Find(x => x.Id == request.MeetingId).FirstOrDefaultAsync();
             if (meeting == null)
                 return NotFound(new { success = false, error = "MEETING_NOT_FOUND" });
+            
+            // 🔧 2. TeamId 유효성 검증
+            if (string.IsNullOrEmpty(meeting.TeamId) || meeting.TeamId.Length != 24)
+            {
+                return BadRequest(new { success = false, error = "INVALID_TEAM_ID", message = "Team ID is invalid" });
+            }
             
             var team = await _mongoDB.Teams.Find(x => x.Id == meeting.TeamId).FirstOrDefaultAsync();
             if (team == null)
                 return NotFound(new { success = false, error = "TEAM_NOT_FOUND" });
             
-            var memberIds = team.Members.Select(m => m.UserId).ToList();
+            if (team.Members == null || !team.Members.Any())
+            {
+                return BadRequest(new { success = false, error = "NO_TEAM_MEMBERS", message = "Team has no members" });
+            }
+            
+            var memberIds = team.Members.Select(m => m.UserId).Where(id => !string.IsNullOrEmpty(id)).ToList();
             var startDate = DateTime.UtcNow;
             var endDate = startDate.AddDays(7);
             
@@ -55,32 +72,39 @@ public class SlotsController : ControllerBase
                     var availableCount = 0;
                     foreach (var av in availabilities)
                     {
-                        if (av.Date == currentDate)
+                        if (av.Date == currentDate && av.Slots != null)
                         {
                             foreach (var slot in av.Slots)
                             {
-                                var startHour = int.Parse(slot.Start.Split(':')[0]);
-                                var endHour = int.Parse(slot.End.Split(':')[0]);
-                                if (startHour <= hour && hour < endHour)
+                                if (slot != null && !string.IsNullOrEmpty(slot.Start))
                                 {
-                                    availableCount++;
-                                    break;
+                                    var startHour = int.Parse(slot.Start.Split(':')[0]);
+                                    var endHour = int.Parse(slot.End.Split(':')[0]);
+                                    if (startHour <= hour && hour < endHour)
+                                    {
+                                        availableCount++;
+                                        break;
+                                    }
                                 }
                             }
                         }
                     }
                     
-                    if (availableCount > 0)
+                    if (availableCount > 0 && memberIds.Count > 0)
                     {
-                        suggestedSlots.Add(new ProposedSlot
+                        // 🔧 3. 새로운 ObjectId 생성 (빈 문자열 방지)
+                        var slot = new ProposedSlot
                         {
+                            Id = ObjectId.GenerateNewId().ToString(),  // 명시적으로 생성
                             MeetingId = meeting.Id,
                             StartTime = startTime,
                             EndTime = endTime,
-                            AiScore = (double)availableCount / memberIds.Count * 100,
+                            AiScore = Math.Round((double)availableCount / memberIds.Count * 100, 2),
                             IsFinalized = false,
+                            Responses = new List<SlotResponse>(),
                             CreatedAt = DateTime.UtcNow
-                        });
+                        };
+                        suggestedSlots.Add(slot);
                     }
                 }
             }
@@ -96,9 +120,13 @@ public class SlotsController : ControllerBase
                 data = new { suggested_count = suggestedSlots.Count }
             });
         }
+        catch (FormatException fe)
+        {
+            return StatusCode(500, new { success = false, error = "FORMAT_ERROR", message = fe.Message });
+        }
         catch (Exception e)
         {
-            return StatusCode(500, new { success = false, error = e.Message });
+            return StatusCode(500, new { success = false, error = e.Message, stack = e.StackTrace });
         }
     }
     
@@ -107,6 +135,9 @@ public class SlotsController : ControllerBase
     {
         try
         {
+            if (string.IsNullOrEmpty(meetingId))
+                return BadRequest(new { success = false, error = "INVALID_MEETING_ID" });
+            
             var slots = await _mongoDB.ProposedSlots
                 .Find(x => x.MeetingId == meetingId)
                 .ToListAsync();
@@ -124,22 +155,27 @@ public class SlotsController : ControllerBase
     {
         try
         {
+            if (string.IsNullOrEmpty(request.SlotId) || request.SlotId.Length != 24)
+            {
+                return BadRequest(new { success = false, error = "INVALID_SLOT_ID" });
+            }
+            
             var slot = await _mongoDB.ProposedSlots.Find(x => x.Id == request.SlotId).FirstOrDefaultAsync();
             if (slot == null)
                 return NotFound(new { success = false, error = "SLOT_NOT_FOUND" });
             
-            var existingResponse = slot.Responses.FirstOrDefault(r => r.UserId == request.UserId);
-            if (existingResponse != null)
-                slot.Responses.Remove(existingResponse);
+            var filter = Builders<ProposedSlot>.Filter.Eq(x => x.Id, request.SlotId);
             
-            slot.Responses.Add(new SlotResponse
-            {
-                UserId = request.UserId,
-                Response = request.Response,
-                RespondedAt = DateTime.UtcNow
-            });
+            var update = Builders<ProposedSlot>.Update
+                .PullFilter(x => x.Responses, r => r.UserId == request.UserId)
+                .Push(x => x.Responses, new SlotResponse
+                {
+                    UserId = request.UserId,
+                    Response = request.Response,
+                    RespondedAt = DateTime.UtcNow
+                });
             
-            await _mongoDB.ProposedSlots.ReplaceOneAsync(x => x.Id == slot.Id, slot);
+            await _mongoDB.ProposedSlots.UpdateOneAsync(filter, update);
             
             return Ok(new { success = true, message = "응답이 저장되었습니다" });
         }
