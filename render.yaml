@@ -1,13 +1,12 @@
 services:
   - type: web
     name: meeting-scheduler-csharp
-    runtime: image
-    image:
-      url: mcr.microsoft.com/dotnet/sdk:8.0
-    buildCommand: dotnet restore && dotnet build
-    startCommand: dotnet run --urls=http://0.0.0.0:$PORT
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
