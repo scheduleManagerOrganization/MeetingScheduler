@@ -80,7 +80,8 @@ public class SlotsController : ControllerBase
                             AiScore = (double)availableCount / memberIds.Count * 100,
                             IsFinalized = false,
                             CreatedAt = DateTime.UtcNow
-                        });
+                        };
+                        suggestedSlots.Add(slot);
                     }
                 }
             }
