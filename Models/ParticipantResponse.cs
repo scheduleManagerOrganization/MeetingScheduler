@@ -10,11 +10,9 @@ public class ParticipantResponse
     public string Id { get; set; } = string.Empty;
     
     [BsonElement("slot_id")]
-    [BsonRepresentation(BsonType.ObjectId)]
     public string SlotId { get; set; } = string.Empty;
     
     [BsonElement("user_id")]
-    [BsonRepresentation(BsonType.ObjectId)]
     public string UserId { get; set; } = string.Empty;
     
     [BsonElement("response")]
