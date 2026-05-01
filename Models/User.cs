@@ -7,7 +7,7 @@ public class User
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
     
     [BsonElement("email")]
     public string Email { get; set; } = string.Empty;
