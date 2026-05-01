@@ -8,7 +8,7 @@ using MeetingScheduler.Models;
 namespace MeetingScheduler.Controllers;
 
 [ApiController]
-[Route("api/meetings/{meetingId}/slots")]  // 🔧 RESTful하게 경로 수정
+[Route("api")]  // 🔧 원래 경로로 복원
 public class SlotsController : ControllerBase
 {
     private readonly MongoDBService _mongoDB;
@@ -18,18 +18,28 @@ public class SlotsController : ControllerBase
         _mongoDB = mongoDB;
     }
     
-    [HttpPost("suggest")]
-    public async Task<IActionResult> SuggestSlots(string meetingId, [FromBody] SuggestSlotsRequest request)
+    [HttpPost("suggest-slots")]
+    public async Task<IActionResult> SuggestSlots([FromBody] SuggestSlotsRequest request)
     {
         try
         {
+            if (request == null)
+            {
+                using var reader = new StreamReader(Request.Body);
+                var body = await reader.ReadToEndAsync();
+                Console.WriteLine($"Raw request body: {body}");
+                return BadRequest(new { success = false, error = "INVALID_REQUEST" });
+            }
+            
+            var meetingId = request.MeetingId;
+            
             if (string.IsNullOrWhiteSpace(meetingId) || meetingId.Length != 24 || 
                 !System.Text.RegularExpressions.Regex.IsMatch(meetingId, "^[0-9a-fA-F]{24}$"))
             {
                 return BadRequest(new { 
                     success = false, 
                     error = "INVALID_MEETING_ID",
-                    message = $"Meeting ID must be a 24-character hex string. Current: '{meetingId}'"
+                    message = $"Meeting ID must be a 24-character hex string." 
                 });
             }
             
@@ -42,18 +52,15 @@ public class SlotsController : ControllerBase
                 return NotFound(new { success = false, error = "TEAM_NOT_FOUND" });
             
             if (team.Members == null || !team.Members.Any())
-            {
                 return BadRequest(new { success = false, error = "NO_TEAM_MEMBERS" });
-            }
             
             var memberIds = team.Members.Select(m => m.UserId).Where(id => !string.IsNullOrEmpty(id)).ToList();
             var startDate = DateTime.UtcNow;
-            var endDate = startDate.AddDays(7);
             
             var availabilities = await _mongoDB.UserCalendars
                 .Find(x => memberIds.Contains(x.UserId) && 
                            string.Compare(x.Date, startDate.ToString("yyyy-MM-dd")) >= 0 &&
-                           string.Compare(x.Date, endDate.ToString("yyyy-MM-dd")) <= 0)
+                           string.Compare(x.Date, startDate.AddDays(7).ToString("yyyy-MM-dd")) <= 0)
                 .ToListAsync();
             
             var suggestedSlots = new List<ProposedSlot>();
@@ -90,32 +97,24 @@ public class SlotsController : ControllerBase
                     
                     if (availableCount > 0 && memberIds.Count > 0)
                     {
-                        var slot = new ProposedSlot
+                        suggestedSlots.Add(new ProposedSlot
                         {
                             Id = ObjectId.GenerateNewId().ToString(),
                             MeetingId = meeting.Id,
                             StartTime = startTime,
                             EndTime = endTime,
                             AiScore = Math.Round((double)availableCount / memberIds.Count * 100, 2),
-                            IsFinalized = false,
                             Responses = new List<SlotResponse>(),
                             CreatedAt = DateTime.UtcNow
-                        };
-                        suggestedSlots.Add(slot);
+                        });
                     }
                 }
             }
             
             if (suggestedSlots.Any())
-            {
                 await _mongoDB.ProposedSlots.InsertManyAsync(suggestedSlots);
-            }
             
-            return Ok(new
-            {
-                success = true,
-                data = new { suggested_count = suggestedSlots.Count }
-            });
+            return Ok(new { success = true, data = new { suggested_count = suggestedSlots.Count } });
         }
         catch (Exception e)
         {
@@ -123,12 +122,12 @@ public class SlotsController : ControllerBase
         }
     }
     
-    [HttpGet]
+    [HttpGet("slots/{meetingId}")]
     public async Task<IActionResult> GetSlots(string meetingId)
     {
         try
         {
-            if (string.IsNullOrEmpty(meetingId) || meetingId.Length != 24)
+            if (string.IsNullOrEmpty(meetingId))
                 return BadRequest(new { success = false, error = "INVALID_MEETING_ID" });
             
             var slots = await _mongoDB.ProposedSlots
@@ -143,22 +142,19 @@ public class SlotsController : ControllerBase
         }
     }
     
-    [HttpPost("{slotId}/respond")]
-    public async Task<IActionResult> RespondToSlot(string meetingId, string slotId, [FromBody] RespondSlotRequest request)
+    [HttpPost("respond-slot")]
+    public async Task<IActionResult> RespondToSlot([FromBody] RespondSlotRequest request)
     {
         try
         {
-            if (string.IsNullOrEmpty(slotId) || slotId.Length != 24)
-            {
+            if (string.IsNullOrEmpty(request.SlotId) || request.SlotId.Length != 24)
                 return BadRequest(new { success = false, error = "INVALID_SLOT_ID" });
-            }
             
-            var slot = await _mongoDB.ProposedSlots.Find(x => x.Id == slotId && x.MeetingId == meetingId).FirstOrDefaultAsync();
+            var slot = await _mongoDB.ProposedSlots.Find(x => x.Id == request.SlotId).FirstOrDefaultAsync();
             if (slot == null)
                 return NotFound(new { success = false, error = "SLOT_NOT_FOUND" });
             
-            var filter = Builders<ProposedSlot>.Filter.Eq(x => x.Id, slotId);
-            
+            var filter = Builders<ProposedSlot>.Filter.Eq(x => x.Id, request.SlotId);
             var update = Builders<ProposedSlot>.Update
                 .PullFilter(x => x.Responses, r => r.UserId == request.UserId)
                 .Push(x => x.Responses, new SlotResponse
@@ -169,7 +165,6 @@ public class SlotsController : ControllerBase
                 });
             
             await _mongoDB.ProposedSlots.UpdateOneAsync(filter, update);
-            
             return Ok(new { success = true, message = "응답이 저장되었습니다" });
         }
         catch (Exception e)
