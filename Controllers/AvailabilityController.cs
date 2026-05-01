@@ -23,20 +23,20 @@ public class AvailabilityController : ControllerBase
     {
         try
         {
-            var calendar = new UserCalendar
-            {
-                UserId = request.UserId,
-                Date = request.Date,
-                Slots = request.Slots.Select(s => new TimeSlot { Start = s.Start, End = s.End }).ToList(),
-                UpdatedAt = DateTime.UtcNow
-            };
-            
-            await _mongoDB.UserCalendars.ReplaceOneAsync(
+            // 업데이트할 필드만 지정
+            var update = Builders<UserCalendar>.Update
+                .Set(x => x.UserId, request.UserId)
+                .Set(x => x.Date, request.Date)
+                .Set(x => x.Slots, request.Slots.Select(s => new TimeSlot { Start = s.Start, End = s.End }).ToList())
+                .Set(x => x.UpdatedAt, DateTime.UtcNow);
+        
+            // Upsert: 있으면 업데이트, 없으면 생성
+            var result = await _mongoDB.UserCalendars.UpdateOneAsync(
                 x => x.UserId == request.UserId && x.Date == request.Date,
-                calendar,
-                new ReplaceOptions { IsUpsert = true }
+                update,
+                new UpdateOptions { IsUpsert = true }
             );
-            
+        
             return Ok(new { success = true, message = "일정이 저장되었습니다" });
         }
         catch (Exception e)
