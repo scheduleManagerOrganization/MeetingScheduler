@@ -1,4 +1,5 @@
 using MeetingScheduler.Services;
+using MongoDB.Driver;
 using MeetingScheduler.Hubs;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
