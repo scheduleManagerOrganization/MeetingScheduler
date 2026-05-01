@@ -134,14 +134,21 @@ public async Task<IActionResult> JoinTeam([FromBody] JoinTeamRequest request)
             Console.WriteLine($"UserId: '{userId}'");
         
             if (string.IsNullOrEmpty(userId))
-            {
                 return BadRequest(new { success = false, error = "INVALID_USER_ID" });
+        
+            // 🔧 전체 팀 개수 로깅
+            var allTeams = await _mongoDB.Teams.Find(_ => true).ToListAsync();
+            Console.WriteLine($"Total teams in DB: {allTeams.Count}");
+            foreach (var t in allTeams)
+            {
+                Console.WriteLine($"  Team: {t.Id}, Members: [{string.Join(", ", t.Members.Select(m => m.UserId))}]");
             }
         
-            // 🔧 ObjectId 변환 없이 문자열로 직접 검색
             var teams = await _mongoDB.Teams
                 .Find(x => x.Members.Any(m => m.UserId == userId && m.Status == "active"))
                 .ToListAsync();
+        
+            Console.WriteLine($"Found {teams.Count} teams for user {userId}");
         
             var result = teams.Select(t => new
             {
@@ -155,7 +162,7 @@ public async Task<IActionResult> JoinTeam([FromBody] JoinTeamRequest request)
         }
         catch (Exception e)
         {
-            Console.WriteLine($"❌ Error in GetUserTeams: {e.Message}");
+            Console.WriteLine($"❌ Error: {e.Message}");
             return StatusCode(500, new { success = false, error = e.Message });
         }
     }
