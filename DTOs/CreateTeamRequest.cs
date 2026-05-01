@@ -1,8 +1,15 @@
+using System.Text.Json.Serialization;
+
 namespace MeetingScheduler.DTOs;
 
 public class CreateTeamRequest
 {
+    [JsonPropertyName("team_name")]
     public string TeamName { get; set; } = string.Empty;
-    public string? OwnerId { get; set; }  // 🔧 string?으로 변경, 기본값 제거
+    
+    [JsonPropertyName("owner_id")]  // 🔧 추가
+    public string? OwnerId { get; set; }
+    
+    [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
 }
