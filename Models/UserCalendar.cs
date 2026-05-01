@@ -16,7 +16,6 @@ public class UserCalendar
     public string Id { get; set; } = string.Empty;
     
     [BsonElement("user_id")]
-    [BsonRepresentation(BsonType.ObjectId)]
     public string UserId { get; set; } = string.Empty;
     
     [BsonElement("date")]
