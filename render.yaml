@@ -1,9 +1,9 @@
 services:
   - type: web
     name: meeting-scheduler-csharp
-    runtime: dotnet
-    repo: https://github.com/본인아이디/meeting-scheduler-csharp
-    plan: free
+    runtime: image
+    image:
+      url: mcr.microsoft.com/dotnet/sdk:8.0
     buildCommand: dotnet restore && dotnet build
     startCommand: dotnet run --urls=http://0.0.0.0:$PORT
     envVars:
