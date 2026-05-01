@@ -7,7 +7,7 @@ public class Meeting
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
     
     [BsonElement("team_id")]
     public string TeamId { get; set; } = string.Empty;
