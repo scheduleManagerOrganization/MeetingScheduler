@@ -68,32 +68,30 @@ public class AvailabilityController : ControllerBase
         try
         {
             Console.WriteLine($"=== GetTeamAvailability called ===");
-            Console.WriteLine($"TeamId: '{teamId}'");
-            Console.WriteLine($"Date: '{date}'");
+            Console.WriteLine($"TeamId: '{teamId}', Date: '{date}'");
         
-            // 🔧 teamId 유효성 검증
             if (string.IsNullOrEmpty(teamId))
-            {
-                return BadRequest(new { success = false, error = "INVALID_TEAM_ID", message = "Team ID is required" });
-            }
+                return BadRequest(new { success = false, error = "INVALID_TEAM_ID" });
         
-            // 🔧 ObjectId 변환 없이 문자열로 직접 검색
             var team = await _mongoDB.Teams.Find(x => x.Id == teamId).FirstOrDefaultAsync();
             if (team == null)
-            {
                 return NotFound(new { success = false, error = "TEAM_NOT_FOUND" });
-            }
         
-            var memberIds = team.Members.Select(m => m.UserId).ToList();
+            var memberIds = team.Members
+                .Select(m => m.UserId)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .ToList();
+        
+            Console.WriteLine($"Member IDs: [{string.Join(", ", memberIds)}]");
         
             if (memberIds.Count == 0)
-            {
                 return Ok(new { success = true, data = new List<object>() });
-            }
         
             var availabilities = await _mongoDB.UserCalendars
                 .Find(x => memberIds.Contains(x.UserId) && x.Date == date)
                 .ToListAsync();
+        
+            Console.WriteLine($"Found {availabilities.Count} availabilities");
         
             var users = await _mongoDB.Users
                 .Find(x => memberIds.Contains(x.Id))
