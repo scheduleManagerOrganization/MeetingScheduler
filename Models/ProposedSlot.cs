@@ -19,7 +19,6 @@ public class ProposedSlot
     public string Id { get; set; } = string.Empty;
     
     [BsonElement("meeting_id")]
-    [BsonRepresentation(BsonType.ObjectId)]
     public string MeetingId { get; set; } = string.Empty;
     
     [BsonElement("start_time")]
