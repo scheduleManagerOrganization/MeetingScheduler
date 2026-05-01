@@ -8,7 +8,7 @@ public class TimeSlotDto
 
 public class SetAvailabilityRequest
 {
-    public string UserId { get; set; } = string.Empty;
+    public string? UserId { get; set; };
     public string Date { get; set; } = string.Empty;
     public string? TeamId { get; set; }
     public List<TimeSlotDto> Slots { get; set; } = new();
