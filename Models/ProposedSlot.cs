@@ -15,7 +15,6 @@ public class SlotResponse
 public class ProposedSlot
 {
     [BsonId]
-    [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = string.Empty;
     
     [BsonElement("meeting_id")]
