@@ -23,15 +23,40 @@ public class SlotsController : ControllerBase
     {
         try
         {
-            // 🔧 1. MeetingId 유효성 검증
-            if (string.IsNullOrEmpty(request.MeetingId) || request.MeetingId.Length != 24)
+            // 🔧 문제: request 자체가 null일 수 있음
+            if (request == null)
             {
-                return BadRequest(new { success = false, error = "INVALID_MEETING_ID", message = "Meeting ID must be a 24-character hex string" });
+                // JSON 바디를 직접 읽어보기
+                using var reader = new StreamReader(Request.Body);
+                var body = await reader.ReadToEndAsync();
+                Console.WriteLine($"Raw request body: {body}");
+                
+                return BadRequest(new { success = false, error = "INVALID_REQUEST", message = "Request body is null" });
             }
             
-            var meeting = await _mongoDB.Meetings.Find(x => x.Id == request.MeetingId).FirstOrDefaultAsync();
+            Console.WriteLine($"Request.MeetingId: '{request.MeetingId}'");
+            Console.WriteLine($"Request.MeetingId length: {request.MeetingId?.Length ?? 0}");
+            
+            // 🔧 MeetingId가 null이거나 빈 문자열인 경우
+            if (string.IsNullOrWhiteSpace(request.MeetingId))
+            {
+                return BadRequest(new { success = false, error = "INVALID_MEETING_ID", message = "Meeting ID is required" });
+            }
+            
+            // 🔧 24자리 16진수 검증 (더 유연하게)
+            var trimmedId = request.MeetingId.Trim();
+            if (trimmedId.Length != 24 || !System.Text.RegularExpressions.Regex.IsMatch(trimmedId, "^[0-9a-fA-F]{24}$"))
+            {
+                return BadRequest(new { 
+                    success = false, 
+                    error = "INVALID_MEETING_ID", 
+                    message = $"Meeting ID must be a 24-character hex string. Current: '{trimmedId}' (length: {trimmedId.Length})" 
+                });
+            }
+            
+            var meeting = await _mongoDB.Meetings.Find(x => x.Id == trimmedId).FirstOrDefaultAsync();
             if (meeting == null)
-                return NotFound(new { success = false, error = "MEETING_NOT_FOUND" });
+                return NotFound(new { success = false, error = "MEETING_NOT_FOUND", meeting_id = trimmedId });
             
             // 🔧 2. TeamId 유효성 검증
             if (string.IsNullOrEmpty(meeting.TeamId) || meeting.TeamId.Length != 24)
