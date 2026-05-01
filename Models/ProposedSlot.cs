@@ -5,7 +5,6 @@ namespace MeetingScheduler.Models;
 
 public class SlotResponse
 {
-    [BsonRepresentation(BsonType.ObjectId)]
     public string UserId { get; set; } = string.Empty;
     
     public string Response { get; set; } = string.Empty;
