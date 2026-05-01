@@ -8,7 +8,7 @@ using MeetingScheduler.Models;
 namespace MeetingScheduler.Controllers;
 
 [ApiController]
-[Route("api")]  // 🔧 원래 경로로 복원
+[Route("api")]
 public class SlotsController : ControllerBase
 {
     private readonly MongoDBService _mongoDB;
@@ -55,12 +55,18 @@ public class SlotsController : ControllerBase
                 return BadRequest(new { success = false, error = "NO_TEAM_MEMBERS" });
             
             var memberIds = team.Members.Select(m => m.UserId).Where(id => !string.IsNullOrEmpty(id)).ToList();
-            var startDate = DateTime.UtcNow;
             
+            // 🔧 날짜 범위를 미리 리스트로 생성
+            var startDate = DateTime.UtcNow;
+            var dateRange = new List<string>();
+            for (int d = 0; d < 7; d++)
+            {
+                dateRange.Add(startDate.AddDays(d).ToString("yyyy-MM-dd"));
+            }
+            
+            // 🔧 string.Compare 대신 dateRange.Contains 사용 (MongoDB $in 쿼리로 변환 가능)
             var availabilities = await _mongoDB.UserCalendars
-                .Find(x => memberIds.Contains(x.UserId) && 
-                           string.Compare(x.Date, startDate.ToString("yyyy-MM-dd")) >= 0 &&
-                           string.Compare(x.Date, startDate.AddDays(7).ToString("yyyy-MM-dd")) <= 0)
+                .Find(x => memberIds.Contains(x.UserId) && dateRange.Contains(x.Date))
                 .ToListAsync();
             
             var suggestedSlots = new List<ProposedSlot>();
