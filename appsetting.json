@@ -6,8 +6,8 @@
     }
   },
   "ConnectionStrings": {
-    "MongoDB": "mongodb+srv://admin:q1w2e3r4@schedulemanager.ck4m04j.mongodb.net/meeting_scheduler?retryWrites=true&w=majority"
+    "MongoDB": ""
   },
-  "JWT_SECRET": "meeting-scheduler-secret-key-2026-very-long-and-random-string",
+  "JWT_SECRET": "",
   "AllowedHosts": "*"
 }
