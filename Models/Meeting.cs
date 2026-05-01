@@ -10,7 +10,8 @@ public class Meeting
     public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
     
     [BsonElement("team_id")]
-    public string TeamId { get; set; } = string.Empty;
+    [BsonRepresentation(BsonType.ObjectId)]  // 🔧 추가
+    public string? TeamId { get; set; }
     
     [BsonElement("title")]
     public string Title { get; set; } = string.Empty;
@@ -22,7 +23,8 @@ public class Meeting
     public int DurationMinutes { get; set; }
     
     [BsonElement("creator_id")]
-    public string CreatorId { get; set; } = string.Empty;
+    [BsonRepresentation(BsonType.ObjectId)]  // 🔧 추가
+    public string? CreatorId { get; set; }
     
     [BsonElement("status")]
     public string Status { get; set; } = "proposing";
