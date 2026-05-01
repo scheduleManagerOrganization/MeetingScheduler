@@ -2,12 +2,12 @@ services:
   - type: web
     name: meeting-scheduler-csharp
     runtime: dotnet
-    repo: https://github.com/scheduleManagerOrganization/meeting-scheduler-csharp
+    repo: https://github.com/본인아이디/meeting-scheduler-csharp
     plan: free
     buildCommand: dotnet restore && dotnet build
     startCommand: dotnet run --urls=http://0.0.0.0:$PORT
     envVars:
       - key: MONGODB_URI
-        value: mongodb+srv://admin:q1w2e3r4@schedulemanager.ck4m04j.mongodb.net/meeting_scheduler?retryWrites=true&w=majority
+        sync: false
       - key: JWT_SECRET
         generateValue: true
