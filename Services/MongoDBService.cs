@@ -10,8 +10,15 @@ public class MongoDBService
     
     public MongoDBService(IConfiguration config)
     {
-        var connectionString = config["MONGODB_URI"] ?? 
-            config.GetConnectionString("MongoDB");
+        // 🔧 환경변수를 우선 사용, 없으면 ConnectionStrings 사용
+        var connectionString = Environment.GetEnvironmentVariable("MONGODB_URI") 
+            ?? config.GetConnectionString("MongoDB");
+        
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new InvalidOperationException("MongoDB connection string is not configured. Set MONGODB_URI environment variable.");
+        }
+        
         var client = new MongoClient(connectionString);
         _database = client.GetDatabase("meeting_scheduler");
     }
