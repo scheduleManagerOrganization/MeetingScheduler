@@ -1,3 +1,9 @@
+// Program.cs 맨 위에 추가
+AppDomain.CurrentDomain.ProcessExit += (s, e) => 
+{
+    Console.WriteLine($"Process exiting. Memory used: {GC.GetTotalMemory(false) / 1024 / 1024} MB");
+};
+
 using MeetingScheduler.Services;
 using MeetingScheduler.Hubs;
 
