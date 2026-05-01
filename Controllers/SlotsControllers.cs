@@ -8,7 +8,7 @@ using MeetingScheduler.Models;
 namespace MeetingScheduler.Controllers;
 
 [ApiController]
-[Route("api")]
+[Route("api/meetings/{meetingId}/slots")]  // 🔧 RESTful하게 경로 수정
 public class SlotsController : ControllerBase
 {
     private readonly MongoDBService _mongoDB;
@@ -18,51 +18,24 @@ public class SlotsController : ControllerBase
         _mongoDB = mongoDB;
     }
     
-    [HttpPost("suggest-slots")]
-    public async Task<IActionResult> SuggestSlots([FromBody] SuggestSlotsRequest request)
+    [HttpPost("suggest")]
+    public async Task<IActionResult> SuggestSlots(string meetingId, [FromBody] SuggestSlotsRequest request)
     {
         try
         {
-            // 🔧 문제: request 자체가 null일 수 있음
-            if (request == null)
-            {
-                // JSON 바디를 직접 읽어보기
-                using var reader = new StreamReader(Request.Body);
-                var body = await reader.ReadToEndAsync();
-                Console.WriteLine($"Raw request body: {body}");
-                
-                return BadRequest(new { success = false, error = "INVALID_REQUEST", message = "Request body is null" });
-            }
-            
-            Console.WriteLine($"Request.MeetingId: '{request.MeetingId}'");
-            Console.WriteLine($"Request.MeetingId length: {request.MeetingId?.Length ?? 0}");
-            
-            // 🔧 MeetingId가 null이거나 빈 문자열인 경우
-            if (string.IsNullOrWhiteSpace(request.MeetingId))
-            {
-                return BadRequest(new { success = false, error = "INVALID_MEETING_ID", message = "Meeting ID is required" });
-            }
-            
-            // 🔧 24자리 16진수 검증 (더 유연하게)
-            var trimmedId = request.MeetingId.Trim();
-            if (trimmedId.Length != 24 || !System.Text.RegularExpressions.Regex.IsMatch(trimmedId, "^[0-9a-fA-F]{24}$"))
+            if (string.IsNullOrWhiteSpace(meetingId) || meetingId.Length != 24 || 
+                !System.Text.RegularExpressions.Regex.IsMatch(meetingId, "^[0-9a-fA-F]{24}$"))
             {
                 return BadRequest(new { 
                     success = false, 
-                    error = "INVALID_MEETING_ID", 
-                    message = $"Meeting ID must be a 24-character hex string. Current: '{trimmedId}' (length: {trimmedId.Length})" 
+                    error = "INVALID_MEETING_ID",
+                    message = $"Meeting ID must be a 24-character hex string. Current: '{meetingId}'"
                 });
             }
             
-            var meeting = await _mongoDB.Meetings.Find(x => x.Id == trimmedId).FirstOrDefaultAsync();
+            var meeting = await _mongoDB.Meetings.Find(x => x.Id == meetingId).FirstOrDefaultAsync();
             if (meeting == null)
-                return NotFound(new { success = false, error = "MEETING_NOT_FOUND", meeting_id = trimmedId });
-            
-            // 🔧 2. TeamId 유효성 검증
-            if (string.IsNullOrEmpty(meeting.TeamId) || meeting.TeamId.Length != 24)
-            {
-                return BadRequest(new { success = false, error = "INVALID_TEAM_ID", message = "Team ID is invalid" });
-            }
+                return NotFound(new { success = false, error = "MEETING_NOT_FOUND" });
             
             var team = await _mongoDB.Teams.Find(x => x.Id == meeting.TeamId).FirstOrDefaultAsync();
             if (team == null)
@@ -70,7 +43,7 @@ public class SlotsController : ControllerBase
             
             if (team.Members == null || !team.Members.Any())
             {
-                return BadRequest(new { success = false, error = "NO_TEAM_MEMBERS", message = "Team has no members" });
+                return BadRequest(new { success = false, error = "NO_TEAM_MEMBERS" });
             }
             
             var memberIds = team.Members.Select(m => m.UserId).Where(id => !string.IsNullOrEmpty(id)).ToList();
@@ -117,10 +90,9 @@ public class SlotsController : ControllerBase
                     
                     if (availableCount > 0 && memberIds.Count > 0)
                     {
-                        // 🔧 3. 새로운 ObjectId 생성 (빈 문자열 방지)
                         var slot = new ProposedSlot
                         {
-                            Id = ObjectId.GenerateNewId().ToString(),  // 명시적으로 생성
+                            Id = ObjectId.GenerateNewId().ToString(),
                             MeetingId = meeting.Id,
                             StartTime = startTime,
                             EndTime = endTime,
@@ -145,22 +117,18 @@ public class SlotsController : ControllerBase
                 data = new { suggested_count = suggestedSlots.Count }
             });
         }
-        catch (FormatException fe)
-        {
-            return StatusCode(500, new { success = false, error = "FORMAT_ERROR", message = fe.Message });
-        }
         catch (Exception e)
         {
-            return StatusCode(500, new { success = false, error = e.Message, stack = e.StackTrace });
+            return StatusCode(500, new { success = false, error = e.Message });
         }
     }
     
-    [HttpGet("slots/{meetingId}")]
+    [HttpGet]
     public async Task<IActionResult> GetSlots(string meetingId)
     {
         try
         {
-            if (string.IsNullOrEmpty(meetingId))
+            if (string.IsNullOrEmpty(meetingId) || meetingId.Length != 24)
                 return BadRequest(new { success = false, error = "INVALID_MEETING_ID" });
             
             var slots = await _mongoDB.ProposedSlots
@@ -175,21 +143,21 @@ public class SlotsController : ControllerBase
         }
     }
     
-    [HttpPost("respond-slot")]
-    public async Task<IActionResult> RespondToSlot([FromBody] RespondSlotRequest request)
+    [HttpPost("{slotId}/respond")]
+    public async Task<IActionResult> RespondToSlot(string meetingId, string slotId, [FromBody] RespondSlotRequest request)
     {
         try
         {
-            if (string.IsNullOrEmpty(request.SlotId) || request.SlotId.Length != 24)
+            if (string.IsNullOrEmpty(slotId) || slotId.Length != 24)
             {
                 return BadRequest(new { success = false, error = "INVALID_SLOT_ID" });
             }
             
-            var slot = await _mongoDB.ProposedSlots.Find(x => x.Id == request.SlotId).FirstOrDefaultAsync();
+            var slot = await _mongoDB.ProposedSlots.Find(x => x.Id == slotId && x.MeetingId == meetingId).FirstOrDefaultAsync();
             if (slot == null)
                 return NotFound(new { success = false, error = "SLOT_NOT_FOUND" });
             
-            var filter = Builders<ProposedSlot>.Filter.Eq(x => x.Id, request.SlotId);
+            var filter = Builders<ProposedSlot>.Filter.Eq(x => x.Id, slotId);
             
             var update = Builders<ProposedSlot>.Update
                 .PullFilter(x => x.Responses, r => r.UserId == request.UserId)
