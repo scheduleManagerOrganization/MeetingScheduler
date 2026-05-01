@@ -66,7 +66,7 @@ public class TeamsController : ControllerBase
         {
             Console.WriteLine($"🔍 JoinTeam called with join_code: '{request.JoinCode}', user_id: '{request.UserId}'");
             
-            var team = await _mongoDB.Teams.Find(x => x.JoinCode.ToUpper == request.JoinCode.ToUpper()).FirstOrDefaultAsync();
+            var team = await _mongoDB.Teams.Find(x => x.JoinCode.ToUpper() == request.JoinCode.ToUpper()).FirstOrDefaultAsync();
             if (team == null)
             {
                 Console.WriteLine($"❌ Team not found with code: {request.JoinCode}");
