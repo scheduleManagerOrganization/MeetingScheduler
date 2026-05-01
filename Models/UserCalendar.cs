@@ -13,7 +13,7 @@ public class UserCalendar
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = null!;
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
     
     [BsonElement("user_id")]
     public string UserId { get; set; } = string.Empty;
