@@ -72,12 +72,12 @@ public class SlotsController : ControllerBase
                     
                     if (availableCount > 0)
                     {
-                        suggestedSlots.Add(new ProposedSlot
+                        var aiScore = (double)availableCount / memberIds.Count * 100;
                         {
                             MeetingId = meeting.Id,
                             StartTime = startTime,
                             EndTime = endTime,
-                            AiScore = (double)availableCount / memberIds.Count * 100,
+                            AiScore = aiScore,
                             IsFinalized = false,
                             CreatedAt = DateTime.UtcNow
                         };
