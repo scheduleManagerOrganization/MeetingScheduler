@@ -5,7 +5,8 @@ namespace MeetingScheduler.Models;
 
 public class SlotResponse
 {
-    public string UserId { get; set; } = string.Empty;
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? UserId { get; set; }  // 🔧 null 허용
     
     public string Response { get; set; } = string.Empty;
     public DateTime RespondedAt { get; set; } = DateTime.UtcNow;
@@ -15,10 +16,11 @@ public class ProposedSlot
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; } = string.Empty;
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
     
     [BsonElement("meeting_id")]
-    public string MeetingId { get; set; } = string.Empty;
+    [BsonRepresentation(BsonType.ObjectId)]  // 🔧 추가
+    public string? MeetingId { get; set; }
     
     [BsonElement("start_time")]
     public DateTime StartTime { get; set; }
