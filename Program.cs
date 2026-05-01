@@ -1,13 +1,18 @@
+using MeetingScheduler.Services;
+using MeetingScheduler.Hubs;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using System;
+
+var builder = WebApplication.CreateBuilder(args);
+
 // Program.cs 맨 위에 추가
 AppDomain.CurrentDomain.ProcessExit += (s, e) => 
 {
     Console.WriteLine($"Process exiting. Memory used: {GC.GetTotalMemory(false) / 1024 / 1024} MB");
 };
 
-using MeetingScheduler.Services;
-using MeetingScheduler.Hubs;
-
-var builder = WebApplication.CreateBuilder(args);
 
 // Add services
 builder.Services.AddControllers();
