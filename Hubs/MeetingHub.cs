@@ -1,9 +1,18 @@
 using Microsoft.AspNetCore.SignalR;
+using MeetingScheduler.Services;
 
 namespace MeetingScheduler.Hubs;
 
 public class MeetingHub : Hub
 {
+    private readonly MongoDBService _mongoDB;
+    
+    // 🔧 MongoDB 주입받도록 수정
+    public MeetingHub(MongoDBService mongoDB)
+    {
+        _mongoDB = mongoDB;
+    }
+    
     public async Task JoinTeamRoom(string teamId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, $"team_{teamId}");
@@ -47,10 +56,11 @@ public class MeetingHub : Hub
     
     public async Task NotifySlotResponseUpdated(string slotId, string userId, string response)
     {
-        var slot = await GetSlotMeetingId(slotId);
-        if (slot != null)
+        // 🔧 실제 MeetingId 조회
+        var meetingId = await GetSlotMeetingId(slotId);
+        if (meetingId != null)
         {
-            await Clients.Group($"meeting_{slot}").SendAsync("slot_response_updated", new
+            await Clients.Group($"meeting_{meetingId}").SendAsync("slot_response_updated", new
             {
                 slot_id = slotId,
                 user_id = userId,
@@ -59,9 +69,19 @@ public class MeetingHub : Hub
         }
     }
     
+    // 🔧 실제 MongoDB 조회로 수정
     private async Task<string?> GetSlotMeetingId(string slotId)
     {
-        // 실제 구현에서는 MongoDB 조회 필요
-        return slotId;
+        try
+        {
+            var slot = await _mongoDB.ProposedSlots
+                .Find(x => x.Id == slotId)
+                .FirstOrDefaultAsync();
+            return slot?.MeetingId;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
