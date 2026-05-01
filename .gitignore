@@ -1,0 +1,7 @@
+# 민감한 설정 파일
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+
+# 하지만 실제 값이 없는 템플릿만 커밋
+# 실제 값은 환경변수로 주입
